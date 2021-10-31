@@ -11,20 +11,20 @@ const browserSync = require('browser-sync').create();
 
 
 const options = minimist(process.argv.slice(2), {
-	string: 'name',
-	default: {
-		name: dateFormat(new Date(), 'yyyymmdd')
-	}
+    string: 'name',
+    default: {
+        name: dateFormat(new Date(), 'yyyymmdd')
+    }
 });
 
 var paths = {
     styles: {
         src: 'src/sketches/**/*.scss',
-        dest: 'dest/'
+        dest: 'dest/sketches/'
     },
     scripts: {
         src: 'src/sketches/**/*.js',
-        dest: 'dest/'
+        dest: 'dest/sketches/'
     },
     views: {
         src: 'src/sketches/**/*.pug',
@@ -82,6 +82,11 @@ async function views() {
     index();
 };
 
+function copyP5() {
+    return gulp.src('node_modules/p5/lib/p5.min.js')
+        .pipe(gulp.dest('dest/'));
+}
+
 function scripts() {
     return gulp.src(paths.scripts.src, { sourcemaps: true })
         .pipe(babel())
@@ -97,43 +102,37 @@ function styles() {
 const browserSyncOption = {
     port: 8080,
     server: {
-      baseDir: './dist/',
-      index: 'index.html',
+        baseDir: './dest/',
+        index: 'index.html',
     },
     reloadOnRestart: true,
 };
-// function browsersync(done) {
-//     browserSync.init(browserSyncOption);
-//     done();
-// }
+
+function browsersync(done) {
+    browserSync.init(browserSyncOption);
+    done();
+}
 
 function watch(done) {
-    browserSync.init({
-        port: 8080,
-        server: {
-          baseDir: './dest/',
-          index: 'index.html',
-        },
-        reloadOnRestart: true,
-    });
     const browserReload = () => {
         browserSync.reload();
         done();
     };
-    console.log(paths.styles.src);
-    gulp.watch(paths.styles.src, gulp.series('styles', browserReload));
-    console.log(paths.scripts.src);
-    gulp.watch(paths.scripts.src, gulp.series('scripts', browserReload));
-    console.log(paths.views.src);
-    gulp.watch(paths.views.src, gulp.series('views', browserReload));
+    gulp.watch(paths.styles.src).on('change', gulp.series('styles', browserReload));
+    gulp.watch(paths.scripts.src).on('change', gulp.series('scripts', browserReload));
+    gulp.watch(paths.views.src).on('change', gulp.series('views', browserReload));
 }
 
 function serve() {
     connect.server();
 }
 
+const build = gulp.series(clean, gulp.parallel(copyP5, views, scripts, styles));
 
-const build = gulp.series(clean, gulp.parallel(views, scripts, styles));
+gulp.task('default', gulp.series(
+    build,
+    gulp.series(browsersync, watch)
+));
 
 exports.newSketch = newSketch;
 exports.clean = clean;
@@ -143,4 +142,3 @@ exports.views = views;
 exports.build = build;
 exports.watch = watch;
 exports.serve = serve;
-exports.default = build;
