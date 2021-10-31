@@ -39,7 +39,7 @@ var paths = {
     }
 };
 
-async function newSketch() {
+gulp.task('newSketch', done => {
     const sketchDirectory = `src/sketches/${options.name}`;
     glob(`${sketchDirectory}*`, (err, sketchDirectories) => {
         if (sketchDirectories.length === 0) {
@@ -49,55 +49,61 @@ async function newSketch() {
             gulp.src('./templates/*')
                 .pipe(gulp.dest(`${sketchDirectory}_${sketchDirectories.length}`));
         }
+        return done();
     });
-}
+});
 
 function clean() {
     return del(['dest']);
 }
 
-function index() {
+function sketchViews(done) {
+    gulp.src('./src/sketches/**/*.pug')
+        .pipe(pug({}))
+        .pipe(gulp.dest(paths.views.sketches.dest));
+    return done();
+}
+
+function indexView(done) {
     glob('./src/sketches/*', (err, sketches) => {
         sketches = sketches.map(sketch => {
             return sketch.replace(/^\.\/src/g, '.');
         });
-        return gulp.src(paths.views.index.src)
+        gulp.src(paths.views.index.src)
             .pipe(
                 pug({
                     locals: { sketches }
                 })
             )
             .pipe(gulp.dest(paths.views.index.dest));
+        return done();
     });
 }
 
-function sketches() {
-    return gulp.src('./src/sketches/**/*.pug')
-        .pipe(pug({}))
-        .pipe(gulp.dest(paths.views.sketches.dest));
-}
+gulp.task('views', gulp.parallel(sketchViews, indexView));
 
-async function views() {
-    sketches();
-    index();
-};
-
-function copyP5() {
+gulp.task('copyP5', () => {
     return gulp.src('node_modules/p5/lib/p5.min.js')
         .pipe(gulp.dest('dest/'));
-}
+});
 
-function scripts() {
+gulp.task('scripts', () => {
     return gulp.src(paths.scripts.src, { sourcemaps: true })
         .pipe(babel())
         .pipe(gulp.dest(paths.scripts.dest));
-}
+});
 
-function styles() {
+async function sketchStyles() {
     return gulp.src(paths.styles.src)
         .pipe(sass().on('error', sass.logError))
         .pipe(gulp.dest(paths.styles.dest));
 }
+
+async function indexStyle() {
+    return;
+}
+
+gulp.task('styles', gulp.parallel(sketchStyles, indexStyle));
 
 const browserSyncOption = {
     port: 8080,
@@ -127,18 +133,14 @@ function serve() {
     connect.server();
 }
 
-const build = gulp.series(clean, gulp.parallel(copyP5, views, scripts, styles));
+const build = gulp.series(clean, gulp.parallel('copyP5', 'views', 'scripts', 'styles'));
 
 gulp.task('default', gulp.series(
     build,
     gulp.series(browsersync, watch)
 ));
 
-exports.newSketch = newSketch;
 exports.clean = clean;
-exports.styles = styles;
-exports.scripts = scripts;
-exports.views = views;
 exports.build = build;
 exports.watch = watch;
 exports.serve = serve;
