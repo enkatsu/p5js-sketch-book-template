@@ -1,0 +1,8 @@
+/node_modules
+/dest
+/src/sketches/**/*
+
+!.gitkeep
+
+/.vscode
+/.DS_Store
